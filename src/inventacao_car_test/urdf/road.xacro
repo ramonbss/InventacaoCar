@@ -1,0 +1,36 @@
+<?xml version='1.0'?>
+<robot name="road" xmlns:xacro="http://www.ros.org/wiki/xacro">
+   <xacro:property name="road_scale" value="0.05" />
+
+  	<link name="base_link">
+		<visual>
+        <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://inventacao_car_test/meshes/unityAssetRoad.dae" scale="${road_scale} ${road_scale} ${road_scale}"/>
+      </geometry>
+    </visual>
+
+    <!-- Required to maintain the 3d model above the ground (when dynamic model) -->
+    <collision>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://inventacao_car_test/meshes/unityAssetRoad.dae" scale="${road_scale} ${road_scale} ${road_scale}"/>
+        </geometry>
+      </collision>
+
+    <!-- 3d model won't show up without inertial set-->
+    <inertial>
+        <origin xyz="0 0 0" rpy="0 0 0" />
+        <inertia ixx="1.0" ixy="0" ixz="0"
+                 iyy="1.0" iyz="0"
+                 izz="1.0" />
+        <mass value="100" />
+      </inertial>
+	</link>
+
+  <!-- Set model as kinematic -->
+  <gazebo>
+      <static>true</static>
+  </gazebo>
+
+</robot>

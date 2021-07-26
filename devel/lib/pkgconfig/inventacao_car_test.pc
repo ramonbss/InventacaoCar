@@ -1,0 +1,8 @@
+prefix=/media/BACKUP/Projetos/ros/InventacaoCar/devel
+
+Name: inventacao_car_test
+Description: Description of inventacao_car_test
+Version: 0.0.0
+Cflags: 
+Libs: -L${prefix}/lib 
+Requires: 

@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<launch>
+	<!-- overwriting these args -->
+	<arg name="debug" default="true"/>
+	<arg name="gui" default="true"/>
+	<arg name="pause" default="false"/>
+	<arg name="world" default="$(find inventacao_car_test)/world/inventacao_predio.world"/>
+	
+	<!-- include gazebo_ros launcher -->
+	<include file="$(find gazebo_ros)/launch/empty_world.launch">
+		<arg name="world_name" default="$(arg world)"/>
+		<arg name="debug" default="$(arg debug)"/>
+		<arg name="gui" default="$(arg gui)"/>
+		<arg name="paused" default="$(arg pause)"/>
+		<arg name="use_sim_time" default="true"/>		
+	</include>
+
+	<!--
+	<arg name="bin_1" value="bin_1_"/>
+
+	<param name="car_description"
+    command="$(find xacro)/xacro '$(find inventacao_car_test)/urdf/car/car.xacro' prefix:=$(arg bin_1)"/>
+	
+	<node name="car_spawner" pkg="gazebo_ros" type="spawn_model" output="screen"
+    args="-x -0.017113 -y 0.001239 -z 0.361203 -urdf -model inventacao_car -param car_description"/>
+	-->
+
+
+	<!-- Convert an xacro and put on parameter server -->
+	<param name="robot_description" 
+		command="$(find xacro)/xacro '$(find inventacao_car_test)/urdf/car_modified_to_camera.xacro'" />
+
+	<!-- Spawn InventacaoCar into Gazebo -->
+	<node name="spawn_urdf" pkg="gazebo_ros" type="spawn_model" output="screen"
+		args=" -x -2.124 -y -0.67 -z 0.361203 -Y 1.27 -urdf -param robot_description -model inventacao_car"/><!-- -Y 1.22 -->
+		
+		
+	<param name="predio_description" 
+		command="$(find xacro)/xacro '$(find inventacao_car_test)/urdf/inventacao_predio.xacro'" />
+
+	<!-- Spawn the predio into Gazebo -->
+		
+	<node name="spawn_urdf_predio" pkg="gazebo_ros" type="spawn_model" output="screen"
+		args=" -z 0.05 -urdf -param predio_description -model inventacao_predio"/>
+		
+	
+	<param name="free_object_description" 
+		command="$(find xacro)/xacro '$(find inventacao_car_test)/urdf/free_object.xacro'" />
+
+
+	<!-- Spawn the road into Gazebo -->
+	<node name="spawn_urdf_free_object" pkg="gazebo_ros" type="spawn_model" output="screen"
+		args=" -z 0.05 -urdf -param free_object_description -model free_object"/>
+		
+</launch>

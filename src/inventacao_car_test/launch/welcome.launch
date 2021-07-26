@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<launch>
+
+  <!-- Start the template publisher ROS node.-->
+  <node name="simple_publisher" pkg="inventacao_car_test" type="publisher_test.py"
+    output="screen"/>
+
+  <!-- Start the template subscriber ROS node.-->
+  <node name="simple_subscriber" pkg="inventacao_car_test" type="subscriber_test.py"
+    output="screen"/>
+</launch>
+

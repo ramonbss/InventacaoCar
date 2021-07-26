@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<sdf version="1.5">
+	<world name="default">
+		<!-- A global light source -->
+		<include>
+			<uri>model://sun</uri>
+		</include>
+		<!-- A ground plane -->
+		<include>
+			<uri>model://ground_plane</uri>
+		</include>
+		
+		<include>
+			<uri>model://InventacaoCar</uri>
+			<static>true</static>
+			<pose>-0.017113 0.001239 0.361203 0.045144 -0.000094 0 </pose>
+			
+		</include>
+
+	</world>
+</sdf>
+	
+
