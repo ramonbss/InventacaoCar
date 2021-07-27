@@ -1041,27 +1041,39 @@ class InventacaoCarCameraBelow(InventacaoCar):
     def applyKinematics(self):
         from math import cos, sin
         orientation = self.orientation
-        xVelocity = self.controllerInputs["y"]
-        yVelocity = self.controllerInputs["x"]
+        xVelocity_camera = self.controllerInputs["x"]
+        yVelocity_camera = self.controllerInputs["y"]
 
-        xVelocity += self.controllerInputs["yLane"]
-        yVelocity += self.controllerInputs["xLane"]
+        xVelocity_camera += self.controllerInputs["xLane"]
+        yVelocity_camera += self.controllerInputs["yLane"]
         
         robotOrientation = self.getRobotOrientationAxisZ()
-        robotOrientationRelatedToWorld = np.rad2deg(-180)
-        
-        xVelocity,yVelocity = self.rotate_via_numpy(xVelocity, yVelocity, robotOrientationRelatedToWorld - robotOrientation)
+        # Correct robot orientation in the velocity direction
+        velocitiesCorrected = self.rotate_via_numpy(xVelocity_camera, yVelocity_camera, robotOrientation)
+        xVelocity_corrected, yVelocity_corrected = velocitiesCorrected
         
         dt = time() - self.last_time
         #print('Error: ', self.errors)
 
         wVelocity = self.controllerInputs["w"]
+        print('w Control: ', wVelocity)
         wAngle = wVelocity * dt
         print('wAngle: ', wAngle)
         newOrientation = self.applyRotationOnQuaternion(self.orientation, wAngle, np.array([0, 0, 1]))
 
-        newX = self.position.x - xVelocity * dt
-        newY = self.position.y - yVelocity * dt
+        """ World       Camera
+            -> Y        -> X        
+            |           |             
+            v           v              
+            X           Y              
+
+            World -> Camera
+            Swap X and Y coordinates or apply the rotations
+             Z(-90)X(-180) to the point in camera frame
+            self.position is already in world frame, obviously
+        """
+        newX = self.position.x + yVelocity_corrected * dt
+        newY = self.position.y + xVelocity_corrected * dt
 
         #print('***********',newOrientation)
 
@@ -1074,6 +1086,7 @@ class InventacaoCarCameraBelow(InventacaoCar):
         objstate.model_state.pose.orientation.x = newOrientation.x
         objstate.model_state.pose.orientation.y = newOrientation.y
         objstate.model_state.pose.orientation.z = newOrientation.z
+        
         #objstate.model_state.reference_frame = "base_link"
         objstate.model_state.reference_frame = "world"
         
