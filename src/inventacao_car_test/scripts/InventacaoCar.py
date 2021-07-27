@@ -540,35 +540,50 @@ class InventacaoCar():
         self.moveRobot()
 
 class PID():
-    def __init__(self, kP, kI, kD):
+    def __init__(self, kP, kI, kD, maxControlValue):
         self.kP = kP
         self.kI = kI
         self.kD = kD
+        self.maxControlValue = maxControlValue
 
         self.error = 0
         self.integratedErrors = 0
         self.lastError = 0
-        self.lastUpdatedTime = time()
+        self.lastUpdatedTime = -1
 
     def setSetPoint(self, setPoint):
         self.setPoint = setPoint
 
-    def computeError(self, currentState):
-        return currentState - self.setPoint
+    def _computeError(self, currentState):
+        return self.setPoint - currentState
+
+    def _truncControlValue(self, u):
+        maxVel = self.maxControlValue
+        if u > maxVel:
+            u = maxVel
+        elif u < -maxVel:
+            u = -maxVel
+
+        return u
 
     def applyPID(self, currentState):
+        if self.lastUpdatedTime == -1:
+            self.lastUpdatedTime = time()
+            return 0
         dt = time() - self.lastUpdatedTime
-        error = self.computeError(currentState)
+        error = self._computeError(currentState)
 
         deltaError = error - self.lastError
         u = error * self.kP \
             + self.integratedErrors * self.kI * dt \
                 + (deltaError/dt)*self.kD
-        
+        #print("2PID error: ", error)
         self.integratedErrors += error
         self.lastError = error
 
-        return u
+        self.lastUpdatedTime = time()
+
+        return self._truncControlValue(u)
 
     
 
@@ -576,17 +591,19 @@ class InventacaoCarPID():
     """xCoefficients={
         kp:value,
         kd:value,
-        ki:value
+        ki:value,
+        maxControlValue
 
     }
     """
-    def __init__(self, xCoefficients, yCoefficients, wCoefficients):
-        self.PIDs = {}
+    def __init__(self, xCoefficients, yCoefficients,
+    xLaneCoefficients, yLaneCoefficients, wCoefficients):
+        self.PIDs: Dict[str,PID] = {}
 
         self._load_PID('x', xCoefficients)
         self._load_PID('y', yCoefficients)
-        self._load_PID('xLane', xCoefficients)
-        self._load_PID('yLane', yCoefficients)
+        self._load_PID('xLane', xLaneCoefficients)
+        self._load_PID('yLane', yLaneCoefficients)
         self._load_PID('w',wCoefficients)
         
 
@@ -594,17 +611,47 @@ class InventacaoCarPID():
         kP = coefficients['kP']
         kI = coefficients['kI']
         kD = coefficients['kD']
+        maxControlValue = coefficients['maxControlValue']
 
-        pid = PID(kP, kI, kD)
+        pid = PID(kP, kI, kD,maxControlValue)
         self.PIDs[name] = pid
 
-
-    def setSetPoints(self, x, y,xLane, yLane, omega):
+    def setXSetPoint(self, x):
         self.PIDs['x'].setSetPoint(x)
+
+    def setYSetPoint(self, y):
         self.PIDs['y'].setSetPoint(y)
+
+    def setXLaneSetPoint(self, xLane):
         self.PIDs['xLane'].setSetPoint(xLane)
+
+    def setYLaneSetPoint(self, yLane):
         self.PIDs['yLane'].setSetPoint(yLane)
-        self.PIDs['w'].setSetPoint(omega)
+
+    def setOmegaSetPoint(self, w):
+        self.PIDs['w'].setSetPoint(w)
+
+    def _setControlBoundary(self, u):
+        maxVel = 1000
+        if u > maxVel:
+            u = maxVel
+        elif u < -maxVel:
+            u = -maxVel
+
+        return u
+
+    def applyPIDs(self, variablesCurrentState):
+        variables = self.PIDs.keys()
+        controls = {}
+        for var in variables:
+            #print("Reading PID: ", var)
+            currentSate = variablesCurrentState[var]
+            u = self.PIDs[var].applyPID(currentSate)            
+            
+            controls[var] = u
+
+        return controls
+
         
 
 class RotatedBox():
@@ -674,16 +721,19 @@ class RotatedBox():
 class InventacaoCarCameraBelow(InventacaoCar):
     
     def __init__(self, model_name):
-        super().__init__(model_name,False )
+        super().__init__(model_name, False)
+        
+        self.PIDs = InventacaoCarPID({"kP": 0.01, "kD": 0, "kI": 0.00001, "maxControlValue":.5},
+        {"kP": 0.01, "kD": 0, "kI": 0.00001, "maxControlValue":.5},
+        {"kP": 0.001, "kD": 0, "kI": 0.006, "maxControlValue":.25},
+        {"kP": 0.001, "kD": 0, "kI": 0.006, "maxControlValue":.25},
+        {"kP":0.05,"kD":0,"kI":0.0, "maxControlValue":1000})
 
-        self.integralErrors = {'x': 0, 'y': 0, 'z': 0,
-                                'orientation': 0,
-                                'xLane': 0, 'yLane':0}
         self.lastTopCenter = None
 
         self.bottomLightName = "inventacao_car_camera_light"
         self.frames_counter = 0
-        self.orientation = None
+        self.quaternion = None
         self.position = None
         
 
@@ -936,45 +986,41 @@ class InventacaoCarCameraBelow(InventacaoCar):
             Y_c = pathNextPoint[1]
             # Target point in world frame
             #X_w, Y_w = self.convertFromCameraToWorldFrame(X_c,Y_c)
-            X_w = X_c
-            Y_w = Y_c
+            
+            self.currentState = {
+                "x": self.middleOfCamera[0],
+                "y": self.middleOfCamera[1],
+                "xLane": self.middleOfCamera[0],
+                "yLane": self.middleOfCamera[1],
+                "w":0
+            }
 
-            xError = X_w - self.middleOfCamera[0]
-            yError = Y_w - self.middleOfCamera[1]
+            self.PIDs.setXSetPoint(X_c)
+            self.PIDs.setYSetPoint(Y_c)
 
-            xLaneError = pathRectangleCenter[0] - self.middleOfCamera[0]
-            yLaneError = pathRectangleCenter[1] - self.middleOfCamera[1]
+            self.PIDs.setXLaneSetPoint(pathRectangleCenter[0])
+            self.PIDs.setYLaneSetPoint(pathRectangleCenter[1])
 
-            distanceFromPathCenter = self.computeDistance(self.middleOfCamera, pathRectangleCenter)
-            distanceFromPathExtreme = self.computeDistance(self.middleOfCamera, pathNextPoint)
+            self.PIDs.setOmegaSetPoint(np.deg2rad(180))
 
+            self.controllerInputs = self.PIDs.applyPIDs(self.currentState)
+
+            #distanceFromPathCenter = self.computeDistance(self.middleOfCamera, pathRectangleCenter)
+            #distanceFromPathExtreme = self.computeDistance(self.middleOfCamera, pathNextPoint)
 
             print('\nPathTarget: ', pathNextPoint)
-            print('newPathTarget: ', (X_w,Y_w))
-            cv2.line(frame, self.middleOfCamera, (int(X_w), int(Y_w)), (0, 0, 0), 5)
+            print('newPathTarget: ', (X_c,Y_c))
+            cv2.line(frame, self.middleOfCamera, (int(X_c), int(Y_c)), (0, 0, 0), 5)
             #cv2.line(frame,middleOfCamera,(int(x),int(y)),(255,255,255),5)
             #cv2.waitKey(0)
 
-            self.errors = {
-                'xError': xError,
-                'yError': yError,
-                'xLaneError': xLaneError,
-                'yLaneError': yLaneError,
-                'orientationError': np.deg2rad(30)
-            }
+            
         
         cv2.circle(frame, self.middleOfCamera, 15, (255, 255, 0), -1)
         
         cv2.imshow("RobotFrontCamera", frame)
         
-        #cv2.imwrite(str(self.frames_counter)+".jpg", frame)
-        #self.frames_counter += 1
-        #print('last frame pos: ', self.frames_counter)
-        #cv2.waitKey(0)
         self.applyKinematics()
-        #self.updateBottomLigtherPosition()
-        
-        #print('distances: ', distances)
         
         cv2.waitKey(30)
         print('\n\n\n')
@@ -983,132 +1029,46 @@ class InventacaoCarCameraBelow(InventacaoCar):
         return ((c2[0] - c1[0])**2 + (c2[1] - c1[1])**2)**.5
 
    
-    def computeOrientation(self):
-        orientation = self.orientation
-        dt = time() - self.last_time
-        kp = 0.05
-        ki = 0 #ki = 0.0001
-        uOrientation = self.errors['orientationError'] * kp + self.integralErrors['orientation']*ki*dt
-
-        self.integralErrors['orientation'] += self.errors['orientationError']
-
-        r = Rotation.from_rotvec(uOrientation * np.array([0, 0, 1]))
+    def applyRotationOnQuaternion(self, quaternion, angle, axis):
+        r = Rotation.from_rotvec(angle * axis)
         q = r.as_quat()
         q1 = Quaternion(q[3],q[0],q[1],q[2])
-        q2 = Quaternion(orientation.w, orientation.x,
-        orientation.y, orientation.z)
+        q2 = Quaternion(quaternion.w, quaternion.x,
+        quaternion.y, quaternion.z)
 
-        res = q1.quat_mult_left(q2, out='Quaternion')
-        return res
+        rotatedQuaternion = q1.quat_mult_left(q2, out='Quaternion')
 
+        return rotatedQuaternion
 
-    def computeXVelocity(self):
-        self.linearkI = 0.00001
-        self.linearkP = 0.01
-        self.linearVel = .5
-        maxVel = self.linearVel
-        xPosition = self.objstate.model_state.pose.position.x
-        dt = time() - self.last_time
-        kp = 0.015
-        ki = 0.0001
-        u = self.errors['yError'] * self.linearkP + self.integralErrors['y']*self.linearkI*dt
-
-        self.integralErrors['y'] += self.errors['yError']
-        #print("Ux: ", u)
-        if u > maxVel:
-            u = maxVel
-        elif u < -maxVel:
-            u = -maxVel
-        return u
-
-    def computeLaneXVelocity(self):
-        self.linearLanekI = 0.001
-        self.linearLanekP = 0.006
-        maxVel = self.linearVel*.5
-        dt = time() - self.last_time
-        kp = 0.01
-        ki = 0.000
-        u = self.errors['yLaneError'] * self.linearLanekP + self.integralErrors['yLane'] * self.linearLanekI * dt
+    def computeOrientation(self):
+        orientation = self.orientation
         
-        print('yLaneError: ',self.errors['yLaneError'])
-        self.integralErrors['yLane'] += self.errors['yLaneError']
-        #print("Ux: ", u)
-        if u > maxVel:
-            u = maxVel
-        elif u < -maxVel:
-            u = -maxVel
-        return u
+        uOrientation = u = self.controllerInputs["w"]
 
-    def computeLaneYVelocity(self):
-        
-        maxVel = self.linearVel*.5
-        
-        dt = time() - self.last_time
-        kp = 0.01
-        ki = 0.0001
-        
-        u = self.errors['xLaneError'] * self.linearLanekP + self.integralErrors['xLane']*self.linearLanekI*dt
-
-        self.integralErrors['xLane'] += self.errors['xLaneError']
-        #print("Uy: ", u)
-        if u > maxVel:
-            u = maxVel
-        elif u < -maxVel:
-            u = -maxVel
-        return u
-
-    def computeYVelocity(self):
-        
-        maxVel = self.linearVel
-        yPosition = self.objstate.model_state.pose.position.y
-        dt = time() - self.last_time
-        kp = 0.015
-        ki = 0.0001
-        
-        u = self.errors['xError'] * self.linearkP + self.integralErrors['x']*self.linearkI*dt
-
-        self.integralErrors['x'] += self.errors['xError']
-        #print("Uy: ", u)
-        if u > maxVel:
-            u = maxVel
-        elif u < -maxVel:
-            u = -maxVel
-        return u
+        return self.applyRotationOnQuaternion(self.orientation, uOrientation, np.array([0, 0, 1]))
     
-
     def applyKinematics(self):
         from math import cos, sin
         orientation = self.orientation
-        xVelocity = self.computeXVelocity()
-        yVelocity = self.computeYVelocity()
+        xVelocity = self.controllerInputs["y"]
+        yVelocity = self.controllerInputs["x"]
 
-        laneCenterCorrection = (self.computeLaneXVelocity(), self.computeLaneYVelocity())
-
-        print("Control: ", (xVelocity,yVelocity))
-        xVelocity += laneCenterCorrection[0]
-        yVelocity += laneCenterCorrection[1]
-        print('Correction: ', laneCenterCorrection)
-
-        #print('Quaternion class: ', dir(self.orientation))
-        q2 = Quaternion(orientation.w, orientation.x,
-        orientation.y, orientation.z)
+        xVelocity += self.controllerInputs["yLane"]
+        yVelocity += self.controllerInputs["xLane"]
+        
         robotOrientation = self.getRobotOrientationAxisZ()
         robotOrientationRelatedToWorld = np.rad2deg(-180)
         
-    
         xVelocity,yVelocity = self.rotate_via_numpy(xVelocity, yVelocity, robotOrientationRelatedToWorld - robotOrientation)
         
         dt = time() - self.last_time
         #print('Error: ', self.errors)
 
-        newOrientation = self.computeOrientation()
+        wVelocity = self.controllerInputs["w"]
+        wAngle = wVelocity * dt
+        print('wAngle: ', wAngle)
+        newOrientation = self.applyRotationOnQuaternion(self.orientation, wAngle, np.array([0, 0, 1]))
 
-        #r = Rotation.from_quat([newOrientation.x, newOrientation.y,
-        #    newOrientation.z, newOrientation.w])
-
-        #print( '\nxyz\n', r.as_euler('xyz',degrees=False))
-
-        #zAngle = r.as_euler('xyz',degrees=False)[2]
         newX = self.position.x - xVelocity * dt
         newY = self.position.y - yVelocity * dt
 
