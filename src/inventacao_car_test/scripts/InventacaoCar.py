@@ -892,7 +892,7 @@ class InventacaoCarCameraBelow(InventacaoCar):
         print("Center 2: ", center2)
         if self.lastTopCenter == None:
             topCenter = None
-            if dist1 > dist2:
+            if dist1 < dist2:
                 topCenter = center1
             else:
                 topCenter = center2
