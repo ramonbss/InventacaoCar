@@ -1013,8 +1013,6 @@ class InventacaoCarCameraBelow(InventacaoCar):
             cv2.line(frame, self.middleOfCamera, (int(X_c), int(Y_c)), (0, 0, 0), 5)
             #cv2.line(frame,middleOfCamera,(int(x),int(y)),(255,255,255),5)
             #cv2.waitKey(0)
-
-            
         
         cv2.circle(frame, self.middleOfCamera, 15, (255, 255, 0), -1)
         
@@ -1039,13 +1037,6 @@ class InventacaoCarCameraBelow(InventacaoCar):
         rotatedQuaternion = q1.quat_mult_left(q2, out='Quaternion')
 
         return rotatedQuaternion
-
-    def computeOrientation(self):
-        orientation = self.orientation
-        
-        uOrientation = u = self.controllerInputs["w"]
-
-        return self.applyRotationOnQuaternion(self.orientation, uOrientation, np.array([0, 0, 1]))
     
     def applyKinematics(self):
         from math import cos, sin
@@ -1089,6 +1080,7 @@ class InventacaoCarCameraBelow(InventacaoCar):
         result = self.set_state_service(objstate)
 
         self.last_time = time()
+
 
     def updateBottomLigtherPosition(self):
         set_state_service = rospy.ServiceProxy('/gazebo/set_model_state', SetModelState)
