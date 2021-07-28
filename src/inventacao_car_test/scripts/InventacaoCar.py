@@ -727,7 +727,7 @@ class InventacaoCarCameraBelow(InventacaoCar):
         {"kP": 0.01, "kD": 0, "kI": 0.00001, "maxControlValue":.5},
         {"kP": 0.001, "kD": 0, "kI": 0.006, "maxControlValue":.25},
         {"kP": 0.001, "kD": 0, "kI": 0.006, "maxControlValue":.25},
-        {"kP":0.05,"kD":0,"kI":0.0, "maxControlValue":1000})
+        {"kP":.08,"kD":0,"kI":0.001, "maxControlValue":0.12})
 
         self.lastTopCenter = None
 
@@ -878,18 +878,18 @@ class InventacaoCarCameraBelow(InventacaoCar):
     def getPathNextTargetPoint(self,center1,center2):
         # If topCenter is not know yet. Use the point more above ( the robot start going forward in it frame )
         referencePoint = (self.middleOfCamera[0], 0)
-        print('referencePoint: ', referencePoint)
+        #print('referencePoint: ', referencePoint)
         referencePoint = self.rotate_via_numpy(*referencePoint, -self.getRobotOrientationAxisZ())
 
-        print('rotatedReferencePoint: ', referencePoint)
-        print('robotOrientation: ', self.getRobotOrientationAxisZ())
+        #print('rotatedReferencePoint: ', referencePoint)
+        #print('robotOrientation: ', self.getRobotOrientationAxisZ())
         
         dist1 = self.computeDistance(referencePoint, center1)
         dist2 = self.computeDistance(referencePoint, center2)
         
-        print("Last topCenter: ", self.lastTopCenter)
-        print("\nCenter 1: ", center1)
-        print("Center 2: ", center2)
+        #print("Last topCenter: ", self.lastTopCenter)
+        #print("\nCenter 1: ", center1)
+        #print("Center 2: ", center2)
         if self.lastTopCenter == None:
             topCenter = None
             if dist1 < dist2:
@@ -992,7 +992,7 @@ class InventacaoCarCameraBelow(InventacaoCar):
                 "y": self.middleOfCamera[1],
                 "xLane": self.middleOfCamera[0],
                 "yLane": self.middleOfCamera[1],
-                "w":0
+                "w": self.getRobotOrientationAxisZ()
             }
 
             self.PIDs.setXSetPoint(X_c)
@@ -1001,7 +1001,9 @@ class InventacaoCarCameraBelow(InventacaoCar):
             self.PIDs.setXLaneSetPoint(pathRectangleCenter[0])
             self.PIDs.setYLaneSetPoint(pathRectangleCenter[1])
 
-            self.PIDs.setOmegaSetPoint(np.deg2rad(180))
+            self.PIDs.setOmegaSetPoint(np.deg2rad(-100))
+
+            print('Robot orientation: ', np.rad2deg(self.getRobotOrientationAxisZ()))
 
             self.controllerInputs = self.PIDs.applyPIDs(self.currentState)
 
