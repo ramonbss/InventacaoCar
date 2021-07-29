@@ -718,6 +718,63 @@ class RotatedBox():
         return (self.center1, self.center2)
 
 
+class QrCodeOrientation():
+    def __init__(self, currentOrientaion):
+        self.targetOrientation = currentOrientaion
+        self.updateRateInFrames = 7
+        self.currentSkippedFrames = self.updateRateInFrames
+
+    def getTargetOrientation(self):
+        return self.targetOrientation
+
+    def checkAndReadQrCode(self, frame):
+        import pyzbar.pyzbar as pyzbar
+        import json
+
+        if self.currentSkippedFrames < self.updateRateInFrames:
+            self.currentSkippedFrames += 1
+            return self.targetOrientation
+        
+        self.currentSkippedFrames = 0
+
+        #gamma = 0.7
+        #lookUpTable = np.empty((1,256), np.uint8)
+        #for i in range(256):
+        #    lookUpTable[0,i] = np.clip(pow(i / 255.0, gamma) * 255.0, 0, 255)
+        #res = cv2.LUT(np.array(frame,copy=True), lookUpTable)        
+        res = frame[60:400, 120:650]
+        cv2.imshow("cropped",res)
+        # Find barcodes and QR codes
+        decodedObjects = pyzbar.decode(res)
+        if len(decodedObjects) > 0:
+            # Print results
+            for obj in decodedObjects:
+                print('Type : ', obj.type)
+                print('Data : ', obj.data, '\n')
+                str_data = obj.data.decode('utf-8')
+                str_data = str_data.replace('{', '{"')
+                str_data = str_data.replace(':', '":')
+                print('str_data: ',str_data)
+                data = json.loads(str_data)
+                self.targetOrientation = np.rad2deg(data['turn'])
+                #cv2.waitKey(0)
+        else:
+            print('No qrcode found')
+
+        return self.targetOrientation
+
+        #cv2.waitKey(0)
+
+        
+
+        """
+        data, bbox, rectifiedImage = self.qrDecoder.detectAndDecode(frame)
+        if len(data) > 0:
+            print("Decoded Data : {}".format(data))
+        else:
+            print('No qrcode found!!!')
+        """
+
 class InventacaoCarCameraBelow(InventacaoCar):
     
     def __init__(self, model_name):
@@ -735,6 +792,9 @@ class InventacaoCarCameraBelow(InventacaoCar):
         self.frames_counter = 0
         self.quaternion = None
         self.position = None
+
+        self.qrCodeOrientationReader = None
+
         
 
     def onReceiveNavData(self):
@@ -744,6 +804,7 @@ class InventacaoCarCameraBelow(InventacaoCar):
         imuData = RosInterface.getModelState(self.modelName, models_state)
         if imuData == None:
             return
+        
         pose = imuData['pose']
         twist = imuData['twist']
         #print(imuData)
@@ -811,7 +872,6 @@ class InventacaoCarCameraBelow(InventacaoCar):
             print("No biggest contour found")
         return np.array([])
 
-    
     def getRobotOrientationAxisZ(self):
         orientation = self.orientation
         q2 = Quaternion(orientation.w, orientation.x,
@@ -840,7 +900,7 @@ class InventacaoCarCameraBelow(InventacaoCar):
             boundRect = cv2.boundingRect(contours_poly)
 
             rect = cv2.minAreaRect(contour)
-            print(rect)
+            #print(rect)
             box = cv2.boxPoints(rect)
             rotatedRect = np.int0(box)
 
@@ -901,8 +961,8 @@ class InventacaoCarCameraBelow(InventacaoCar):
             d1 = self.computeDistance(center1,self.lastTopCenter)
             d2 = self.computeDistance(center2, self.lastTopCenter)
             
-            print("center1Distance: ", d1)
-            print("center2Distance: ", d2)
+            #print("center1Distance: ", d1)
+            #print("center2Distance: ", d2)
 
             if d1 < d2:
                 self.lastTopCenter = center1
@@ -965,6 +1025,9 @@ class InventacaoCarCameraBelow(InventacaoCar):
             self.position == None:
                 return
 
+        if self.qrCodeOrientationReader == None:
+            self.qrCodeOrientationReader = QrCodeOrientation( self.getRobotOrientationAxisZ() )
+
         if self.frame_width <= 0:
             self.frame_width = frame.shape[1]
             self.frame_height = frame.shape[0]
@@ -972,13 +1035,17 @@ class InventacaoCarCameraBelow(InventacaoCar):
 
         contours = self.processFrameAndReturnContours(frame)
         
-        self.drawCornersMarkers(frame)        
-              
+        #targetOrientation = self.checkAndReadQrCode(frame)
+        targetOrientation = self.qrCodeOrientationReader.checkAndReadQrCode(frame)
+        
+        self.drawCornersMarkers(frame)
+
         laneContour = self.findLaneContour(contours)
 
         laneContourInfos = self.extractLaneContourInfos(laneContour, frame)
         
         if laneContourInfos != None:
+            
             pathNextPoint = laneContourInfos['pathNextTargetPoint']
             pathRectangleCenter = (laneContourInfos['centerX'],laneContourInfos['centerY'])
             # Target point in camera frame
@@ -1001,7 +1068,8 @@ class InventacaoCarCameraBelow(InventacaoCar):
             self.PIDs.setXLaneSetPoint(pathRectangleCenter[0])
             self.PIDs.setYLaneSetPoint(pathRectangleCenter[1])
 
-            self.PIDs.setOmegaSetPoint(np.deg2rad(-100))
+            targetOrientation = -30
+            self.PIDs.setOmegaSetPoint(np.deg2rad(targetOrientation))
 
             print('Robot orientation: ', np.rad2deg(self.getRobotOrientationAxisZ()))
 
@@ -1010,8 +1078,8 @@ class InventacaoCarCameraBelow(InventacaoCar):
             #distanceFromPathCenter = self.computeDistance(self.middleOfCamera, pathRectangleCenter)
             #distanceFromPathExtreme = self.computeDistance(self.middleOfCamera, pathNextPoint)
 
-            print('\nPathTarget: ', pathNextPoint)
-            print('newPathTarget: ', (X_c,Y_c))
+            #print('\nPathTarget: ', pathNextPoint)
+            #print('newPathTarget: ', (X_c,Y_c))
             cv2.line(frame, self.middleOfCamera, (int(X_c), int(Y_c)), (0, 0, 0), 5)
             #cv2.line(frame,middleOfCamera,(int(x),int(y)),(255,255,255),5)
             #cv2.waitKey(0)
