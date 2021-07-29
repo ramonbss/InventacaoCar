@@ -1,0 +1,40 @@
+<?xml version='1.0'?>
+<robot name="road" xmlns:xacro="http://www.ros.org/wiki/xacro">
+   <xacro:property name="predio_scale" value="9" />
+   <xacro:property name="predio_qrcodes_mesh_path" value="package://inventacao_car_test/meshes/InventacaoPredioRoadQrCodes/InventacaoPredioRoadQrCodes.dae" />
+   <xacro:property name="x" value="-30.756142" />
+   <xacro:property name="y" value="-11.228691" />
+   <xacro:property name="z" value="0.05" />
+
+  	<link name="base_link">
+		<visual>
+        <origin xyz="${x} ${y} ${z}" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="${predio_qrcodes_mesh_path}" scale="${predio_scale} ${predio_scale} ${predio_scale}"/>
+      </geometry>
+    </visual>
+
+    <!-- Required to maintain the 3d model above the ground (when dynamic model) -->
+    <collision>
+        <origin xyz="${x} ${y} ${z}" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="${predio_qrcodes_mesh_path}" scale="${predio_scale} ${predio_scale} ${predio_scale}"/>
+        </geometry>
+      </collision>
+
+    <!-- 3d model won't show up without inertial set-->
+    <inertial>
+        <origin xyz="0 0 0" rpy="0 0 0" />
+        <inertia ixx="1.0" ixy="0" ixz="0"
+                 iyy="1.0" iyz="0"
+                 izz="1.0" />
+        <mass value="100" />
+      </inertial>
+	</link>
+
+  <!-- Set model as kinematic -->
+  <gazebo>
+      <static>true</static>
+  </gazebo>
+
+</robot>

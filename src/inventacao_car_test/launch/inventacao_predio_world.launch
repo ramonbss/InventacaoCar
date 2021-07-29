@@ -33,24 +33,33 @@
 
 	<!-- Spawn InventacaoCar into Gazebo -->
 	<node name="spawn_urdf" pkg="gazebo_ros" type="spawn_model" output="screen"
-		args=" -x -2.124 -y -0.67 -z 0.361203 -Y 1.27 -urdf -param robot_description -model inventacao_car"/><!-- -Y 1.22 -->
+		args=" -x -2.124 -y -0.67 -z 0.361203 -Y 0 -urdf -param robot_description -model inventacao_car"/><!-- -Y 1.27 -->
 		
+	<!-- Spawn the predio into Gazebo -->
 		
 	<param name="predio_description" 
 		command="$(find xacro)/xacro '$(find inventacao_car_test)/urdf/inventacao_predio.xacro'" />
 
-	<!-- Spawn the predio into Gazebo -->
 		
 	<node name="spawn_urdf_predio" pkg="gazebo_ros" type="spawn_model" output="screen"
 		args=" -z 0.05 -urdf -param predio_description -model inventacao_predio"/>
-		
+	
+	<!-- Spawn the free object into Gazebo -->	
 	
 	<param name="free_object_description" 
 		command="$(find xacro)/xacro '$(find inventacao_car_test)/urdf/free_object.xacro'" />
 
 
-	<!-- Spawn the road into Gazebo -->
 	<node name="spawn_urdf_free_object" pkg="gazebo_ros" type="spawn_model" output="screen"
 		args=" -z 0.05 -urdf -param free_object_description -model free_object"/>
+		
+	<!-- Spawn road qr_codes object into Gazebo -->	
+	
+	<param name="road_qrcodes_description" 
+		command="$(find xacro)/xacro '$(find inventacao_car_test)/urdf/inventacao_predio_road_qr_codes.xacro'" />
+
+
+	<node name="spawn_urdf_road_qr_codes" pkg="gazebo_ros" type="spawn_model" output="screen"
+		args=" -z 0.05 -urdf -param road_qrcodes_description -model road_qrcodes"/>
 		
 </launch>
