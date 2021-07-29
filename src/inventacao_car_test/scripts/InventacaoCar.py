@@ -756,7 +756,7 @@ class QrCodeOrientation():
                 str_data = str_data.replace(':', '":')
                 print('str_data: ',str_data)
                 data = json.loads(str_data)
-                self.targetOrientation = np.rad2deg(data['turn'])
+                self.targetOrientation = np.deg2rad(data['turn'])
                 #cv2.waitKey(0)
         else:
             print('No qrcode found')
@@ -1068,10 +1068,9 @@ class InventacaoCarCameraBelow(InventacaoCar):
             self.PIDs.setXLaneSetPoint(pathRectangleCenter[0])
             self.PIDs.setYLaneSetPoint(pathRectangleCenter[1])
 
-            targetOrientation = -30
-            self.PIDs.setOmegaSetPoint(np.deg2rad(targetOrientation))
-
-            print('Robot orientation: ', np.rad2deg(self.getRobotOrientationAxisZ()))
+            self.PIDs.setOmegaSetPoint(targetOrientation)
+            print('TargetOrientation: ', targetOrientation)
+            print('Robot orientation: ', self.getRobotOrientationAxisZ())
 
             self.controllerInputs = self.PIDs.applyPIDs(self.currentState)
 
