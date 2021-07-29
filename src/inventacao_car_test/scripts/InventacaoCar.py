@@ -784,7 +784,7 @@ class InventacaoCarCameraBelow(InventacaoCar):
         {"kP": 0.01, "kD": 0, "kI": 0.00001, "maxControlValue":.5},
         {"kP": 0.001, "kD": 0, "kI": 0.006, "maxControlValue":.25},
         {"kP": 0.001, "kD": 0, "kI": 0.006, "maxControlValue":.25},
-        {"kP":.08,"kD":0,"kI":0.001, "maxControlValue":0.12})
+        {"kP":.5,"kD":0.1,"kI":0.0001, "maxControlValue":0.12})
 
         self.lastTopCenter = None
 
@@ -1084,13 +1084,41 @@ class InventacaoCarCameraBelow(InventacaoCar):
             #cv2.waitKey(0)
         
         cv2.circle(frame, self.middleOfCamera, 15, (255, 255, 0), -1)
-        
+        self.printStateInfosOnScreen(frame, {
+            "position": self.position,
+            "w": self.getRobotOrientationAxisZ(),
+            "targetW": targetOrientation
+        })
         cv2.imshow("RobotFrontCamera", frame)
         
         self.applyKinematics()
         
         cv2.waitKey(30)
         print('\n\n\n')
+
+    def printStateInfosOnScreen(self, frame, infos):
+        org = (20, 50)
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        thickness = 1
+        fontScale = 1
+        position = infos['position']
+        w = infos['w']
+        targetOrientation = infos['targetW']
+
+        text1 = 'X: ' + str(round(position.x,3))
+        text2 = 'Y: ' + str(round(position.y,3))
+        text3 = 'W: ' + str(round(w, 3))
+        text4 = 'tW: ' + str( round(targetOrientation,3) )
+
+        frame = cv2.putText(frame, text1, org, font, 
+                   fontScale, (255,255,255), thickness, cv2.LINE_AA)
+        frame = cv2.putText(frame, text2, (20,100), font, 
+                   fontScale, (255,255,255), thickness, cv2.LINE_AA)
+        frame = cv2.putText(frame, text3, (20,150), font, 
+                   fontScale, (255, 255, 255), thickness, cv2.LINE_AA)
+        frame = cv2.putText(frame, text4, (20,200), font, 
+                   fontScale, (255, 255, 255), thickness, cv2.LINE_AA)
+        
 
     def computeDistance(self, c1, c2):
         return ((c2[0] - c1[0])**2 + (c2[1] - c1[1])**2)**.5
