@@ -721,7 +721,7 @@ class RotatedBox():
 class QrCodeOrientation():
     def __init__(self, currentOrientaion):
         self.targetOrientation = currentOrientaion
-        self.updateRateInFrames = 7
+        self.updateRateInFrames = 5
         self.currentSkippedFrames = self.updateRateInFrames
 
     def getTargetOrientation(self):
@@ -737,13 +737,14 @@ class QrCodeOrientation():
         
         self.currentSkippedFrames = 0
 
-        #gamma = 0.7
+        res = frame[150:650, 150:650]
+        gamma = 0.7
         #lookUpTable = np.empty((1,256), np.uint8)
         #for i in range(256):
         #    lookUpTable[0,i] = np.clip(pow(i / 255.0, gamma) * 255.0, 0, 255)
-        #res = cv2.LUT(np.array(frame,copy=True), lookUpTable)        
-        res = frame[60:400, 120:650]
-        cv2.imshow("cropped",res)
+        #res = cv2.LUT(np.array(res,copy=True), lookUpTable)        
+        
+        #cv2.imshow("QrDetector",res)
         # Find barcodes and QR codes
         decodedObjects = pyzbar.decode(res)
         if len(decodedObjects) > 0:
@@ -782,9 +783,9 @@ class InventacaoCarCameraBelow(InventacaoCar):
         
         self.PIDs = InventacaoCarPID({"kP": 0.01, "kD": 0, "kI": 0.00001, "maxControlValue":.5},
         {"kP": 0.01, "kD": 0, "kI": 0.00001, "maxControlValue":.5},
-        {"kP": 0.001, "kD": 0, "kI": 0.006, "maxControlValue":.25},
-        {"kP": 0.001, "kD": 0, "kI": 0.006, "maxControlValue":.25},
-        {"kP":.5,"kD":0.1,"kI":0.0001, "maxControlValue":0.12})
+        {"kP": 0.001, "kD": 0, "kI": 0.006, "maxControlValue":.2},
+        {"kP": 0.001, "kD": 0, "kI": 0.006, "maxControlValue":.2},
+        {"kP":.5,"kD":0.1,"kI":0.0001, "maxControlValue":0.24})
 
         self.lastTopCenter = None
 
@@ -1019,8 +1020,7 @@ class InventacaoCarCameraBelow(InventacaoCar):
 
         return (newX,newY)
     
-    def onImageReceived(self, frame):
-
+    def processBottomCameraFrame(self, frame):
         if self.orientation == None or \
             self.position == None:
                 return
@@ -1091,10 +1091,14 @@ class InventacaoCarCameraBelow(InventacaoCar):
         })
         cv2.imshow("RobotFrontCamera", frame)
         
-        self.applyKinematics()
+        #self.applyKinematics()
         
-        cv2.waitKey(30)
+        cv2.waitKey(1)
         print('\n\n\n')
+
+    def onImageReceived(self, frame):
+
+        self.processBottomCameraFrame(frame)
 
     def printStateInfosOnScreen(self, frame, infos):
         org = (20, 50)
@@ -1231,7 +1235,7 @@ def onRosShutdown():
     cv2.destroyAllWindows()
 
 def onImageReceived(frame):
-    cv2.imshow("RobotFrontCamera", frame)
+    cv2.imshow("Person1View", frame)
     cv2.waitKey(1)
 
 def onReceiveModelsState(models_state):
@@ -1248,6 +1252,9 @@ if __name__ == "__main__":
     rosInterface.listenToCamera("/inventacao_car/camera1/image_raw", car.onImageReceived)
     rosInterface.listenToModelsStates(car.onReceiveImuData)
 
+    #gazeboCameraPerson1 = GazeboCamera("/inventacao_car/cameraPerson1/image_raw")
+    #gazeboCameraPerson1.setOnReceiveImage(onImageReceived)
+
     print('1')
     #car.moveRobot(0, 0)
     print('2')
@@ -1257,6 +1264,7 @@ if __name__ == "__main__":
     #robotCamera.setOnReceiveImage(onImageReceived)
 
     while rospy.is_shutdown() == False:
+        print('3')
         rospy.spin()
 
     rospy.signal_shutdown( "Fim" )
