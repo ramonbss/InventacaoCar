@@ -1033,6 +1033,8 @@ class InventacaoCarCameraBelow(InventacaoCar):
             self.frame_height = frame.shape[0]
             self.middleOfCamera = (int(self.frame_height / 2), int(self.frame_width / 2))
 
+        cv2.circle(frame, self.middleOfCamera, 15, (255, 255, 0), -1)
+
         contours = self.processFrameAndReturnContours(frame)
         
         #targetOrientation = self.checkAndReadQrCode(frame)
@@ -1082,16 +1084,16 @@ class InventacaoCarCameraBelow(InventacaoCar):
             cv2.line(frame, self.middleOfCamera, (int(X_c), int(Y_c)), (0, 0, 0), 5)
             #cv2.line(frame,middleOfCamera,(int(x),int(y)),(255,255,255),5)
             #cv2.waitKey(0)
+
+            self.applyKinematics()
         
-        cv2.circle(frame, self.middleOfCamera, 15, (255, 255, 0), -1)
+        
         self.printStateInfosOnScreen(frame, {
             "position": self.position,
             "w": self.getRobotOrientationAxisZ(),
             "targetW": targetOrientation
         })
         cv2.imshow("RobotFrontCamera", frame)
-        
-        #self.applyKinematics()
         
         cv2.waitKey(1)
         print('\n\n\n')
