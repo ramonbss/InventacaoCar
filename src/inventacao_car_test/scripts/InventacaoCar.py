@@ -864,22 +864,28 @@ class InventacaoCarCameraBelow(InventacaoCar):
 
         return q2.to_euler()[2]
     
-    def extractLaneContourInfos(self, contour, frame=np.array([])):
+    def interpolateTwoPoints(self, p0, p1, interpolation):
+        points = [p0, p1]
+        dx = p1[0] - p0[0]
+        dy = p1[1] - p0[1]
+        dt = interpolation
+
+        x = dt * dx + p0[0]
+        y = dt*dy + p0[1]
+        return (x, y)
+
+    def extractNextPathPointFromLaneContourAndDrawIt(self, contour, frame=np.array([])):
         contourInfos = None
 
         boundRect = None
         contours_poly = None
-      
-        getTopCenterResult = False
 
         if len(contour) > 0:
             
             M = cv2.moments(contour)
             
-            cx = int(M['m10']/M['m00'])
-            cy = int(M['m01'] / M['m00'])
-
-            #[vx, vy, x, y] = cv2.fitLine(cnt, cv2.DIST_L2, 0, 0.01, 0.01)
+            contourCenterX = int(M['m10']/M['m00'])
+            contourCenterY = int(M['m01'] / M['m00'])
 
             contours_poly = cv2.approxPolyDP(contour, 3, True)
             boundRect = cv2.boundingRect(contours_poly)
@@ -892,20 +898,20 @@ class InventacaoCarCameraBelow(InventacaoCar):
             rotatedObject = RotatedBox(rect)
             rotatedBoxBoundariesCenter = rotatedObject.getCenters()
 
-            pathNextTargetPoint, getTopCenterResult = self.getPathNextTargetPoint(*rotatedBoxBoundariesCenter)
-            nextTargetPointX = (pathNextTargetPoint[0] + cx) / 2
-            nextTargetPointY = (pathNextTargetPoint[1] + cy)/2
-
+            pathNextTargetPoint, _ = self.getPathNextTargetPoint(*rotatedBoxBoundariesCenter)
+            # Instead use the inbetween point instead of the next point
+            #  to maintain stability and avoid living the lane
+            nextTargetPointX, nextTargetPointY= self.interpolateTwoPoints(pathNextTargetPoint,(contourCenterX,contourCenterY),.5)
+            
             contourInfos = {
             #'cnt': cnt,
-            'centerX': cx,
-            'centerY': cy,
-            #'pathNextTargetPoint': pathNextTargetPoint
+            'centerX': contourCenterX,
+            'centerY': contourCenterY,
             'pathNextTargetPoint': (nextTargetPointX, nextTargetPointY)
             }
 
             if frame.all(None) == False:
-                cv2.circle(frame, (cx, cy), 9, (255, 0, 0), -1)
+                cv2.circle(frame, (contourCenterX, contourCenterY), 9, (255, 0, 0), -1)
                 cv2.circle(frame, rotatedBoxBoundariesCenter[0], 20, (255, 0, 0), -1)
                 cv2.circle(frame, rotatedBoxBoundariesCenter[1], 20, (0, 255, 0), -1)
 
@@ -1030,7 +1036,7 @@ class InventacaoCarCameraBelow(InventacaoCar):
 
         laneContour = self.findLaneContour(contours)
 
-        laneContourInfos = self.extractLaneContourInfos(laneContour, cuttedFrame)
+        laneContourInfos = self.extractNextPathPointFromLaneContourAndDrawIt(laneContour, cuttedFrame)
         
         if laneContourInfos != None:
             
