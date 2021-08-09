@@ -737,8 +737,7 @@ class QrCodeOrientation():
         
         self.currentSkippedFrames = 0
 
-        res = frame[150:650, 150:650]
-        gamma = 0.7
+        #gamma = 0.7
         #lookUpTable = np.empty((1,256), np.uint8)
         #for i in range(256):
         #    lookUpTable[0,i] = np.clip(pow(i / 255.0, gamma) * 255.0, 0, 255)
@@ -746,7 +745,7 @@ class QrCodeOrientation():
         
         #cv2.imshow("QrDetector",res)
         # Find barcodes and QR codes
-        decodedObjects = pyzbar.decode(res)
+        decodedObjects = pyzbar.decode(frame)
         if len(decodedObjects) > 0:
             # Print results
             for obj in decodedObjects:
@@ -794,9 +793,7 @@ class InventacaoCarCameraBelow(InventacaoCar):
         self.quaternion = None
         self.position = None
 
-        self.qrCodeOrientationReader = None
-
-        
+        self.qrCodeOrientationReader = None  
 
     def onReceiveNavData(self):
         pass
@@ -818,38 +815,22 @@ class InventacaoCarCameraBelow(InventacaoCar):
         self.linear_velocities = twist.linear
         self.angular_velocities = twist.angular
 
+    def cutFrame(self, frame):
+        return frame[150:650,150:650]
+
     def processFrameAndReturnContours(self, frame):
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        blur = cv2.blur(gray,(5,5))
-        thresh = np.ones_like(blur) * 255
-        blackWidth = 200
-        # Top
-        #thresh = cv2.rectangle(thresh, (0, 0), (thresh.shape[0], blackWidth), (0, 0, 0), -1)
-        # Left
-        #thresh = cv2.rectangle(thresh, (0, 0), (blackWidth, thresh.shape[1]), (0, 0, 0), -1)
-        # Right
-        #thresh = cv2.rectangle(thresh, (thresh.shape[0] - blackWidth, 0), (thresh.shape[0] , thresh.shape[1]), (0, 0, 0), -1)
-        # Bottom
-        #thresh = cv2.rectangle(thresh, (0, thresh.shape[1]-blackWidth), (thresh.shape[0], thresh.shape[1]), (0, 0, 0), -1)
         
-        thresh[blur < 45] = 0
-        thresh[blur > 80] = 0
-
-        p1 = (0, 0)
-        p2 = (thresh.shape[0], thresh.shape[1])
-
-        p1 = self.rotate_via_numpy(*p1, self.getRobotOrientationAxisZ())
-        p2 = self.rotate_via_numpy(*p2, self.getRobotOrientationAxisZ())
-
-        #print('p1: ', p1)
-        #print('p2: ', p2)
-
-        thresh = cv2.rectangle(thresh, (0,0), (thresh.shape[0], thresh.shape[1]), 0,300)
+        grayFrame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        smoothedFrame = cv2.blur(grayFrame,(5,5))
+        
+        # Remove outiliers pixels (too dark or too bright relative to the lane color)
+        thresh = np.ones_like(smoothedFrame) * 255
+        
+        thresh[smoothedFrame < 45] = 0
+        thresh[smoothedFrame > 80] = 0
 
         cv2.imshow("RobotFrontCameraOutput", thresh)
-        #cv2.waitKey(0)
-        #cv2.imshow("Blur result: ", blur)
-
+        
         contours, hierarchy = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         return contours
 
@@ -1028,23 +1009,25 @@ class InventacaoCarCameraBelow(InventacaoCar):
         if self.qrCodeOrientationReader == None:
             self.qrCodeOrientationReader = QrCodeOrientation( self.getRobotOrientationAxisZ() )
 
+
+        cuttedFrame = self.cutFrame(frame)
+
         if self.frame_width <= 0:
-            self.frame_width = frame.shape[1]
-            self.frame_height = frame.shape[0]
+            self.frame_width = cuttedFrame.shape[1]
+            self.frame_height = cuttedFrame.shape[0]
             self.middleOfCamera = (int(self.frame_height / 2), int(self.frame_width / 2))
 
-        cv2.circle(frame, self.middleOfCamera, 15, (255, 255, 0), -1)
+        cv2.circle(cuttedFrame, self.middleOfCamera, 15, (255, 255, 0), -1)
 
-        contours = self.processFrameAndReturnContours(frame)
+        contours = self.processFrameAndReturnContours(cuttedFrame)
         
-        #targetOrientation = self.checkAndReadQrCode(frame)
-        targetOrientation = self.qrCodeOrientationReader.checkAndReadQrCode(frame)
+        targetOrientation = self.qrCodeOrientationReader.checkAndReadQrCode(cuttedFrame)
         
-        self.drawCornersMarkers(frame)
+        self.drawCornersMarkers(cuttedFrame)
 
         laneContour = self.findLaneContour(contours)
 
-        laneContourInfos = self.extractLaneContourInfos(laneContour, frame)
+        laneContourInfos = self.extractLaneContourInfos(laneContour, cuttedFrame)
         
         if laneContourInfos != None:
             
@@ -1081,19 +1064,19 @@ class InventacaoCarCameraBelow(InventacaoCar):
 
             #print('\nPathTarget: ', pathNextPoint)
             #print('newPathTarget: ', (X_c,Y_c))
-            cv2.line(frame, self.middleOfCamera, (int(X_c), int(Y_c)), (0, 0, 0), 5)
+            cv2.line(cuttedFrame, self.middleOfCamera, (int(X_c), int(Y_c)), (0, 0, 0), 5)
             #cv2.line(frame,middleOfCamera,(int(x),int(y)),(255,255,255),5)
             #cv2.waitKey(0)
 
             self.applyKinematics()
         
         
-        self.printStateInfosOnScreen(frame, {
+        self.printStateInfosOnScreen(cuttedFrame, {
             "position": self.position,
             "w": self.getRobotOrientationAxisZ(),
             "targetW": targetOrientation
         })
-        cv2.imshow("RobotFrontCamera", frame)
+        cv2.imshow("RobotFrontCamera", cuttedFrame)
         
         cv2.waitKey(1)
         print('\n\n\n')
