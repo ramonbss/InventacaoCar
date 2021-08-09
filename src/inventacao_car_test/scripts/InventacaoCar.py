@@ -793,7 +793,9 @@ class InventacaoCarCameraBelow(InventacaoCar):
         self.quaternion = None
         self.position = None
 
-        self.qrCodeOrientationReader = None  
+        self.qrCodeOrientationReader = None
+
+        self.MINIMUM_ALLOWED_CONTOUR_AREA = 2000
 
     def onReceiveNavData(self):
         pass
@@ -837,10 +839,11 @@ class InventacaoCarCameraBelow(InventacaoCar):
     def findLaneContour(self, contours):
         biggestCountourIndex = -1
         biggerContourArea = -1
+        
         for index,cnt in enumerate(contours):
             area = cv2.contourArea(cnt)
             #print("Area: ", + area)
-            if area < 2000:
+            if area < self.MINIMUM_ALLOWED_CONTOUR_AREA:
                 continue
             
             if area > biggerContourArea:
