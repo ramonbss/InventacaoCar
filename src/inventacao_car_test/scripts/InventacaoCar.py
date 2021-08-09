@@ -874,19 +874,38 @@ class InventacaoCarCameraBelow(InventacaoCar):
         y = dt*dy + p0[1]
         return (x, y)
 
+    
+    def computeContourCenter (self,contour):
+        M = cv2.moments(contour)
+        
+        contourCenterX = int(M['m10']/M['m00'])
+        contourCenterY = int(M['m01'] / M['m00'])
+
+        return (contourCenterX, contourCenterY)
+    
+    
+    def drawLaneContourInfos(self, frame, contourCenter, rotatedBoxBoundariesCenter,
+        rotatedRect, boundRect, contours_poly):
+
+        cv2.circle(frame, contourCenter, 9, (255, 0, 0), -1)
+        cv2.circle(frame, rotatedBoxBoundariesCenter[0], 20, (255, 0, 0), -1)
+        cv2.circle(frame, rotatedBoxBoundariesCenter[1], 20, (0, 255, 0), -1)
+
+        cv2.drawContours(frame, [rotatedRect], 0, (0, 0, 255), 2)
+        
+        # Draw contour
+        cv2.drawContours(frame, [contours_poly], 0, (0,255,0))
+        cv2.rectangle(frame, (int(boundRect[0]), int(boundRect[1])), \
+        (int(boundRect[0] + boundRect[2]), int(boundRect[1] + boundRect[3])), (0, 0, 255), 2)
+    
     def extractNextPathPointFromLaneContourAndDrawIt(self, contour, frame=np.array([])):
         contourInfos = None
 
-        boundRect = None
-        contours_poly = None
-
         if len(contour) > 0:
+            # 1- Get cotour center coordinate
+            contourCenterX,contourCenterY = self.computeContourCenter(contour)
             
-            M = cv2.moments(contour)
-            
-            contourCenterX = int(M['m10']/M['m00'])
-            contourCenterY = int(M['m01'] / M['m00'])
-
+            # 2- Get rotated rectangle that fit the contour
             contours_poly = cv2.approxPolyDP(contour, 3, True)
             boundRect = cv2.boundingRect(contours_poly)
 
@@ -895,12 +914,16 @@ class InventacaoCarCameraBelow(InventacaoCar):
             box = cv2.boxPoints(rect)
             rotatedRect = np.int0(box)
 
+            # 3- Intantiate RotatedBox class
+            #   This class helps computing rotatedbox centers (opencv doesnt give it)
             rotatedObject = RotatedBox(rect)
             rotatedBoxBoundariesCenter = rotatedObject.getCenters()
 
+            # 4- Indentify wich box center points in path's direction
             pathNextTargetPoint, _ = self.getPathNextTargetPoint(*rotatedBoxBoundariesCenter)
+            
             # Instead use the inbetween point instead of the next point
-            #  to maintain stability and avoid living the lane
+            #  to maintain stability and avoid living the lane near curves
             nextTargetPointX, nextTargetPointY= self.interpolateTwoPoints(pathNextTargetPoint,(contourCenterX,contourCenterY),.5)
             
             contourInfos = {
@@ -910,17 +933,8 @@ class InventacaoCarCameraBelow(InventacaoCar):
             'pathNextTargetPoint': (nextTargetPointX, nextTargetPointY)
             }
 
-            if frame.all(None) == False:
-                cv2.circle(frame, (contourCenterX, contourCenterY), 9, (255, 0, 0), -1)
-                cv2.circle(frame, rotatedBoxBoundariesCenter[0], 20, (255, 0, 0), -1)
-                cv2.circle(frame, rotatedBoxBoundariesCenter[1], 20, (0, 255, 0), -1)
-
-                cv2.drawContours(frame, [rotatedRect], 0, (0, 0, 255), 2)
-                
-                # Draw contour
-                cv2.drawContours(frame, [contours_poly], 0, (0,255,0))
-                cv2.rectangle(frame, (int(boundRect[0]), int(boundRect[1])), \
-                (int(boundRect[0] + boundRect[2]), int(boundRect[1] + boundRect[3])), (0, 0, 255), 2)
+            self.drawLaneContourInfos(frame, (contourCenterX, contourCenterY),
+                rotatedBoxBoundariesCenter,rotatedRect,boundRect,contours_poly)
         else:
             print("Contour Lane is Empty")
             
