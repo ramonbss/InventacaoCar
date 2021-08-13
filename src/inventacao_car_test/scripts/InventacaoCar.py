@@ -1135,22 +1135,6 @@ class InventacaoCarCameraBelow(InventacaoCar):
         
         result = set_state_service(objstate)
 
-    def stopRobot(self):
-        objstate.model_state.pose.position.x = 0.5
-        objstate.model_state.pose.position.y = 0.5
-        objstate.model_state.pose.position.z = 0.5
-        objstate.model_state.pose.orientation.w = 1
-        objstate.model_state.pose.orientation.x = 0
-        objstate.model_state.pose.orientation.y = 0
-        objstate.model_state.pose.orientation.z = 0
-        objstate.model_state.twist.linear.x = 0.0
-        objstate.model_state.twist.linear.y = 0.0
-        objstate.model_state.twist.linear.z = 0.0
-        objstate.model_state.twist.angular.x = 0.0
-        objstate.model_state.twist.angular.y = 0.0
-        objstate.model_state.twist.angular.z = 0.0
-        self.moveRobot()
-
 def onRosShutdown():
     print("Ros is being shutdown")
     cv2.destroyAllWindows()
