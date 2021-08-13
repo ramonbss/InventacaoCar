@@ -535,7 +535,6 @@ class PID():
         self.lastUpdatedTime = time()
 
         return self._truncControlValue(u)
-
     
 
 class InventacaoCarPID():
@@ -602,7 +601,6 @@ class InventacaoCarPID():
             controls[var] = u
 
         return controls
-
         
 
 class RotatedBox():
@@ -940,40 +938,6 @@ class InventacaoCarCameraBelow(InventacaoCar):
         m = np.dot(j, [x, y])
 
         return float(m.T[0]), float(m.T[1])
-
-    def convertFromCameraToWorldFrame(self, X_c, Y_c):
-
-        orientation = self.orientation
-        # Rotation Matrix from Camera To World
-        
-        newPosition = self.rotate_via_numpy(X_c,Y_c, np.radians(0))
-
-        #q2 = Quaternion(orientation.w, orientation.x,
-        #orientation.y, orientation.z)
-
-        #print("Robot euler: ", q2.to_euler())
-        
-        #r = Rotation.from_rotvec((3.14) * np.array([0, 0, 1]))
-        #q = r.as_quat()
-        #q1 = Quaternion(q[3],q[0],q[1],q[2]).to_mat()
-
-        #q2 = q2.quat_mult_right(q, out='Quaternion')
-
-        #C_li = q1 @ q2.to_mat()
-        #print('C_li: ', C_li)
-        #print('pos: ', np.array([xError,yError,0]))
-        
-        
-        #newPosition = np.array([x,y,0])
-        print('Raw position: ', (X_c, Y_c))
-        print('World position: ', newPosition)
-
-        #cv2.waitKey(0)
-
-        newX = -newPosition[0]
-        newY = -newPosition[1]
-
-        return (newX,newY)
     
     def processBottomCameraFrame(self, frame):
         if self.orientation == None or \
@@ -1010,8 +974,6 @@ class InventacaoCarCameraBelow(InventacaoCar):
             # Target point in camera frame
             X_c = pathNextPoint[0]
             Y_c = pathNextPoint[1]
-            # Target point in world frame
-            #X_w, Y_w = self.convertFromCameraToWorldFrame(X_c,Y_c)
             
             self.currentState = {
                 "x": self.middleOfCamera[0],
