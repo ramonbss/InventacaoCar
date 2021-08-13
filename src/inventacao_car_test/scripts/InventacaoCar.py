@@ -729,10 +729,10 @@ class InventacaoCarCameraBelow(InventacaoCar):
     def __init__(self, model_name):
         super().__init__(model_name, False)
         
-        self.PIDs = InventacaoCarPID({"kP": 0.01, "kD": 0, "kI": 0.00001, "maxControlValue":.5},
-        {"kP": 0.01, "kD": 0, "kI": 0.00001, "maxControlValue":.5},
-        {"kP": 0.001, "kD": 0, "kI": 0.006, "maxControlValue":.2},
-        {"kP": 0.001, "kD": 0, "kI": 0.006, "maxControlValue":.2},
+        self.PIDs = InventacaoCarPID({"kP": 0.01, "kD": 0, "kI": 0.00001, "maxControlValue": 1},
+        {"kP": 0.01, "kD": 0, "kI": 0.00001, "maxControlValue": 1},
+        {"kP": 0.001, "kD": 0, "kI": 0.006, "maxControlValue":.4},
+        {"kP": 0.001, "kD": 0, "kI": 0.006, "maxControlValue":.4},
         {"kP":.5,"kD":0.1,"kI":0.0001, "maxControlValue":0.24})
 
         self.lastTopCenter = None
