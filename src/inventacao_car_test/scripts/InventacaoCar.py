@@ -1060,9 +1060,7 @@ class InventacaoCarCameraBelow(InventacaoCar):
 
         return rotatedQuaternion
     
-    def applyKinematics(self):
-        from math import cos, sin
-        orientation = self.orientation
+    def computeXYVelocityInWorldFrame(self):
         xVelocity_camera = self.controllerInputs["x"]
         yVelocity_camera = self.controllerInputs["y"]
 
@@ -1070,12 +1068,32 @@ class InventacaoCarCameraBelow(InventacaoCar):
         yVelocity_camera += self.controllerInputs["yLane"]
         
         robotOrientation = self.getRobotOrientationAxisZ()
-        # Correct robot orientation in the velocity direction
-        velocitiesCorrected = self.rotate_via_numpy(xVelocity_camera, yVelocity_camera, robotOrientation)
-        xVelocity_corrected, yVelocity_corrected = velocitiesCorrected
-        
+        # Transform velocities from camera frame
+        #  to robot's
+        velocities_robot = self.rotate_via_numpy(xVelocity_camera, yVelocity_camera, robotOrientation)
+        xVelocity_robot, yVelocity_robot = velocities_robot
+
+        """ World       Robot
+            -> Y        -> X        
+            |           |             
+            v           v              
+            X           Y              
+
+            World -> Robot
+            Swap X and Y coordinates or apply the rotations
+             Z(-90)X(-180) to the point in robot frame
+        """
+        xVelocity_world = yVelocity_robot
+        yVelocity_world = xVelocity_robot
+
+        return (xVelocity_world, yVelocity_world)
+
+    def applyKinematics(self):
+        from math import cos, sin
+        orientation = self.orientation
         dt = time() - self.last_time
-        #print('Error: ', self.errors)
+
+        xVelocity_corrected, yVelocity_corrected = self.computeXYVelocityInWorldFrame()
 
         wVelocity = self.controllerInputs["w"]
         print('w Control: ', wVelocity)
@@ -1083,19 +1101,9 @@ class InventacaoCarCameraBelow(InventacaoCar):
         print('wAngle: ', wAngle)
         newOrientation = self.applyRotationOnQuaternion(self.orientation, wAngle, np.array([0, 0, 1]))
 
-        """ World       Camera
-            -> Y        -> X        
-            |           |             
-            v           v              
-            X           Y              
-
-            World -> Camera
-            Swap X and Y coordinates or apply the rotations
-             Z(-90)X(-180) to the point in camera frame
-            self.position is already in world frame, obviously
-        """
-        newX = self.position.x + yVelocity_corrected * dt
-        newY = self.position.y + xVelocity_corrected * dt
+        
+        newX = self.position.x + xVelocity_corrected * dt
+        newY = self.position.y + yVelocity_corrected * dt
 
         #print('***********',newOrientation)
 
