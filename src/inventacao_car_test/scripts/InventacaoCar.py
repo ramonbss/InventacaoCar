@@ -1088,12 +1088,32 @@ class InventacaoCarCameraBelow(InventacaoCar):
 
         return (xVelocity_world, yVelocity_world)
 
+    
+    def applyKinematicsInPosition(self):
+        from geometry_msgs.msg import Point
+
+        dt = time() - self.last_time
+
+        xVelocity_world, yVelocity_world = \
+             self.computeXYVelocityInWorldFrame()
+
+        newPosition = Point()
+
+        newX = self.position.x + xVelocity_world * dt
+        newY = self.position.y + yVelocity_world * dt
+
+        newPosition.x =  newX
+        newPosition.y = newY
+        newPosition.z = 0.361203
+
+        return newPosition
+
     def applyKinematics(self):
         from math import cos, sin
         orientation = self.orientation
         dt = time() - self.last_time
 
-        xVelocity_corrected, yVelocity_corrected = self.computeXYVelocityInWorldFrame()
+        newPosition = self.applyKinematicsInPosition()
 
         wVelocity = self.controllerInputs["w"]
         print('w Control: ', wVelocity)
@@ -1101,21 +1121,19 @@ class InventacaoCarCameraBelow(InventacaoCar):
         print('wAngle: ', wAngle)
         newOrientation = self.applyRotationOnQuaternion(self.orientation, wAngle, np.array([0, 0, 1]))
 
-        
-        newX = self.position.x + xVelocity_corrected * dt
-        newY = self.position.y + yVelocity_corrected * dt
-
         #print('***********',newOrientation)
 
         objstate = self.objstate
         objstate.model_state.model_name = self.modelName
-        objstate.model_state.pose.position.x =  newX
-        objstate.model_state.pose.position.y = newY
-        objstate.model_state.pose.position.z = 0.361203
-        objstate.model_state.pose.orientation.w = newOrientation.w
-        objstate.model_state.pose.orientation.x = newOrientation.x
-        objstate.model_state.pose.orientation.y = newOrientation.y
-        objstate.model_state.pose.orientation.z = newOrientation.z
+        
+        objstate.model_state.pose.position = newPosition
+        
+        objstate.model_state.pose.orientation = newOrientation
+        
+        #objstate.model_state.pose.orientation.w = newOrientation.w
+        #objstate.model_state.pose.orientation.x = newOrientation.x
+        #objstate.model_state.pose.orientation.y = newOrientation.y
+        #objstate.model_state.pose.orientation.z = newOrientation.z
         
         #objstate.model_state.reference_frame = "base_link"
         objstate.model_state.reference_frame = "world"
