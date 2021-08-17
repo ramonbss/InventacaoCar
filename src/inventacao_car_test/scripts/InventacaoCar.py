@@ -1108,34 +1108,27 @@ class InventacaoCarCameraBelow(InventacaoCar):
 
         return newPosition
 
-    def applyKinematics(self):
-        from math import cos, sin
-        orientation = self.orientation
+    def applyKinematicsInOrientation(self):
         dt = time() - self.last_time
 
-        newPosition = self.applyKinematicsInPosition()
-
         wVelocity = self.controllerInputs["w"]
-        print('w Control: ', wVelocity)
+        
         wAngle = wVelocity * dt
-        print('wAngle: ', wAngle)
+
         newOrientation = self.applyRotationOnQuaternion(self.orientation, wAngle, np.array([0, 0, 1]))
 
-        #print('***********',newOrientation)
+        return newOrientation
+        
+    def applyKinematics(self):
+        
+        newPosition = self.applyKinematicsInPosition()
+
+        newOrientation = self.applyKinematicsInOrientation()
 
         objstate = self.objstate
         objstate.model_state.model_name = self.modelName
-        
         objstate.model_state.pose.position = newPosition
-        
         objstate.model_state.pose.orientation = newOrientation
-        
-        #objstate.model_state.pose.orientation.w = newOrientation.w
-        #objstate.model_state.pose.orientation.x = newOrientation.x
-        #objstate.model_state.pose.orientation.y = newOrientation.y
-        #objstate.model_state.pose.orientation.z = newOrientation.z
-        
-        #objstate.model_state.reference_frame = "base_link"
         objstate.model_state.reference_frame = "world"
         
         result = self.set_state_service(objstate)
